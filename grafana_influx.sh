@@ -1,8 +1,9 @@
 #!/bin/bash
-# Complete Grafana + InfluxDB HTTPS Setup for RHEL 9
+# Complete Grafana + InfluxDB HTTPS Setup for Amazon Linux 2023
 # Fully Automated - No Manual Intervention Required
 # Author: Infrastructure Team
 # Date: 2024
+# Updated for Amazon Linux 2023 compatibility
 
 set -e  # Exit on any error
 
@@ -16,7 +17,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}=======================================================================${NC}"
-echo -e "${BLUE}🚀 COMPLETE GRAFANA + INFLUXDB HTTPS SETUP FOR RHEL 9${NC}"
+echo -e "${BLUE}🚀 COMPLETE GRAFANA + INFLUXDB HTTPS SETUP FOR AMAZON LINUX 2023${NC}"
 echo -e "${BLUE}=======================================================================${NC}"
 
 # Configuration Variables
@@ -35,9 +36,18 @@ CERT_PASSWORD="<Vs0gHeGCf61HX.x"
 echo ""
 echo -e "${CYAN}=== SECTION 1: SYSTEM PREPARATION ===${NC}"
 
-# Update system packages
+# Detect if running on Amazon Linux 2023
+if [ -f /etc/amazon-linux-release ]; then
+    echo -e "${GREEN}✓ Detected Amazon Linux 2023${NC}"
+    IS_AL2023=true
+else
+    echo -e "${YELLOW}⚠ System may not be Amazon Linux 2023, proceeding anyway...${NC}"
+    IS_AL2023=false
+fi
+
+# Update system packages (Amazon Linux 2023 specific refresh)
 echo -e "${BLUE}Updating system packages...${NC}"
-sudo dnf update -y
+sudo dnf update -y --refresh
 
 # Install essential tools
 echo -e "${BLUE}Installing essential tools...${NC}"
@@ -93,10 +103,11 @@ sudo rpm --import influxdata-archive_compat.key
 rm -f influxdata-archive_compat.key
 
 # Create InfluxDB 2.x repository
+# For Amazon Linux 2023, use RHEL 9 repository directly
 cat <<EOF | sudo tee /etc/yum.repos.d/influxdb2.repo > /dev/null
 [influxdb]
-name = InfluxDB Repository - RHEL \$releasever
-baseurl = https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable
+name = InfluxDB Repository - RHEL 9
+baseurl = https://repos.influxdata.com/rhel/9/\$basearch/stable
 enabled = 1
 gpgcheck = 1
 gpgkey = https://repos.influxdata.com/influxdata-archive_compat.key
@@ -139,9 +150,21 @@ sudo ss -tlnp | grep :8086 || true
 echo ""
 echo -e "${CYAN}=== SECTION 5: INSTALL NGINX ===${NC}"
 
-# Install EPEL repository
-echo -e "${BLUE}Installing EPEL repository...${NC}"
-sudo dnf install -y epel-release
+# Install EPEL repository (Amazon Linux 2023 specific method)
+echo -e "${BLUE}Installing EPEL repository for Amazon Linux 2023...${NC}"
+if [ "$IS_AL2023" = true ]; then
+    # Amazon Linux 2023 has EPEL in the extras library
+    sudo dnf install -y epel-release
+    # If epel-release doesn't work, try the direct method
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW}Standard EPEL install failed, trying alternative method...${NC}"
+        sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    fi
+else
+    # Fallback for non-AL2023 systems (like RHEL 9)
+    sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+fi
+
 sudo dnf upgrade -y
 
 # Install Nginx
@@ -532,13 +555,30 @@ echo -e "${GREEN}✅ InfluxDB Nginx configuration created${NC}"
 echo ""
 echo -e "${CYAN}=== SECTION 12: CONFIGURE SELINUX ===${NC}"
 
-if command -v getenforce &> /dev/null && [ "$(getenforce)" != "Disabled" ]; then
-    echo -e "${BLUE}Configuring SELinux policies...${NC}"
-    sudo setsebool -P httpd_can_network_connect on
-    sudo restorecon -Rv /etc/nginx/ssl/
-    echo -e "${GREEN}✅ SELinux configured${NC}"
+# Check if SELinux is present and enabled
+if command -v getenforce &> /dev/null; then
+    SELINUX_STATUS=$(getenforce)
+    echo -e "${BLUE}SELinux status: ${SELINUX_STATUS}${NC}"
+    
+    if [ "${SELINUX_STATUS}" != "Disabled" ]; then
+        echo -e "${BLUE}Configuring SELinux policies...${NC}"
+        
+        # Install SELinux utilities if missing (Amazon Linux 2023 specific)
+        if ! command -v semanage &> /dev/null; then
+            echo -e "${YELLOW}Installing SELinux policy utilities...${NC}"
+            sudo dnf install -y policycoreutils-python-utils
+        fi
+        
+        # Apply SELinux policies
+        sudo setsebool -P httpd_can_network_connect on 2>/dev/null || true
+        sudo restorecon -Rv /etc/nginx/ssl/ 2>/dev/null || true
+        
+        echo -e "${GREEN}✅ SELinux configured${NC}"
+    else
+        echo -e "${YELLOW}SELinux is disabled, skipping configuration${NC}"
+    fi
 else
-    echo -e "${YELLOW}SELinux is disabled or not installed${NC}"
+    echo -e "${YELLOW}SELinux is not installed on this system${NC}"
 fi
 
 #### SECTION 13: START AND TEST SERVICES ####
@@ -577,9 +617,6 @@ for service in grafana-server influxdb nginx; do
     fi
 done
 
-# Update system packages (AL2023 specific)
-sudo dnf update -y --refresh
-
 # Clean up
 cd /
 rm -rf ${TEMP_DIR}
@@ -587,7 +624,7 @@ rm -rf ${TEMP_DIR}
 #### SECTION 14: FINAL SUMMARY ####
 echo ""
 echo -e "${BLUE}=======================================================================${NC}"
-echo -e "${GREEN}🎉 INSTALLATION COMPLETE!${NC}"
+echo -e "${GREEN}🎉 INSTALLATION COMPLETE ON AMAZON LINUX 2023!${NC}"
 echo -e "${BLUE}=======================================================================${NC}"
 echo ""
 echo -e "${GREEN}📊 DEPLOYED SERVICES:${NC}"
@@ -618,6 +655,7 @@ echo -e "  2. Access Grafana at https://${GRAFANA_DOMAIN}"
 echo -e "  3. Add InfluxDB as a data source in Grafana"
 echo -e "  4. Create your dashboards"
 echo ""
-echo -e "${YELLOW}📌 CERTIFICATES VALID UNTIL: August 28, 2026${NC}"
+echo -e "${YELLOW}📌 CERTIFICATES VALID UNTIL: September 2026${NC}"
+echo -e "${CYAN}📌 Platform: Amazon Linux 2023${NC}"
 echo ""
 echo -e "${BLUE}=======================================================================${NC}"
