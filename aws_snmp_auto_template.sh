@@ -38,6 +38,9 @@ if [[ ! -f "$CONF_FILE" ]]; then
     echo "✓ Created empty config file: $CONF_FILE"
 else
     echo "✓ Config file already exists: $CONF_FILE"
+    # Fix permissions on existing file
+    chmod 644 "$CONF_FILE"
+    chown telegraf:telegraf "$CONF_FILE"
 fi
 
 # STEP 2: Create systemd service
@@ -84,9 +87,26 @@ LOG_DIR="/var/log/telegraf"
 if [[ ! -d "$LOG_DIR" ]]; then
     mkdir -p "$LOG_DIR"
     chown telegraf:telegraf "$LOG_DIR"
+    chmod 755 "$LOG_DIR"
     echo "✓ Created log directory: $LOG_DIR"
 else
+    # Fix permissions on existing directory
+    chown telegraf:telegraf "$LOG_DIR"
+    chmod 755 "$LOG_DIR"
     echo "✓ Log directory exists: $LOG_DIR"
+fi
+
+# Ensure any existing log files have correct permissions
+if [[ -f "$LOG_DIR/telegraf.log" ]]; then
+    chown telegraf:telegraf "$LOG_DIR/telegraf.log"
+    chmod 644 "$LOG_DIR/telegraf.log"
+fi
+
+# Also handle the specific instance log file if it exists
+INSTANCE_LOG="$LOG_DIR/${INSTANCE_NAME}.log"
+if [[ -f "$INSTANCE_LOG" ]]; then
+    chown telegraf:telegraf "$INSTANCE_LOG"
+    chmod 644 "$INSTANCE_LOG"
 fi
 
 # STEP 4: Display next steps
