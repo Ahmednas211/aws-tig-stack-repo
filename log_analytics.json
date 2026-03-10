@@ -57,6 +57,16 @@
                           "enabled": true
                         }
                       }
+                    ],
+                    "logs": [
+                      {
+                        "category": "LoadBalancerHealthEvent",
+                        "enabled": true,
+                        "retentionPolicy": {
+                          "days": 30,
+                          "enabled": true
+                        }
+                      }
                     ]
                   }
                 }
