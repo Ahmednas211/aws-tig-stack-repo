@@ -1,0 +1,161 @@
+{
+  "id": 52,
+  "type": "table",
+  "title": "New panel",
+  "gridPos": {
+    "x": 0,
+    "y": 0,
+    "h": 22,
+    "w": 24
+  },
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "align": "auto",
+        "cellOptions": {
+          "type": "auto"
+        },
+        "inspect": false
+      },
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "green",
+            "value": null
+          },
+          {
+            "color": "red",
+            "value": 80
+          }
+        ]
+      },
+      "color": {
+        "mode": "thresholds"
+      },
+      "fieldMinMax": false
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "id"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 645
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "resourceGroup"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 314
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "subscriptionId"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 404
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "name"
+        },
+        "properties": [
+          {
+            "id": "custom.width",
+            "value": 310
+          }
+        ]
+      }
+    ]
+  },
+  "transformations": [
+    {
+      "id": "joinByField",
+      "options": {
+        "byField": "id",
+        "mode": "outerTabular"
+      }
+    }
+  ],
+  "pluginVersion": "12.1.1",
+  "targets": [
+    {
+      "datasource": {
+        "uid": "${Subscriptions}",
+        "type": "grafana-azure-monitor-datasource"
+      },
+      "refId": "A",
+      "hide": false,
+      "queryType": "Azure Resource Graph",
+      "azureMonitor": {
+        "timeGrain": "auto",
+        "allowedTimeGrainsMs": []
+      },
+      "subscriptions": [],
+      "azureResourceGraph": {
+        "query": "resources\r\n| where type =~ 'microsoft.network/loadbalancers'\r\n| where resourceGroup matches regex '(?i)(hub-|pcp-|stargate-)'\r\n| where name matches regex '(?i)(trust-|prod-lb|trust-lb)'\r\n| where tolower(name) !has \"untrust\"\r\n| project\r\n    id = tolower(id),\r\n    subscriptionId,\r\n    name,\r\n    resourceGroup,\r\n    location\r\n| order by name asc",
+        "scope": "directory"
+      }
+    },
+    {
+      "datasource": {
+        "uid": "${Subscriptions}",
+        "type": "grafana-azure-monitor-datasource"
+      },
+      "refId": "C",
+      "hide": false,
+      "queryType": "Azure Log Analytics",
+      "azureMonitor": {
+        "timeGrain": "auto",
+        "allowedTimeGrainsMs": []
+      },
+      "azureLogAnalytics": {
+        "resultFormat": "logs",
+        "dashboardTime": true,
+        "mode": "builder",
+        "resources": [
+          "/subscriptions/7852edc2-4695-44f2-812f-a927308fbfa0"
+        ],
+        "timeColumn": "TimeGenerated",
+        "query": "let lookback = 30d;\r\nAzureMetrics\r\n| where TimeGenerated > ago(lookback)\r\n| where ResourceId has \"/providers/Microsoft.Network/loadBalancers/\"\r\n| where MetricName == \"VipAvailability\"\r\n| summarize arg_max(TimeGenerated, Average) by ResourceId\r\n| project\r\n    id = tolower(ResourceId),\r\n    DPA = Average,\r\n    DPA_LastSeen = TimeGenerated\r\n| order by DPA_LastSeen desc"
+      }
+    }
+  ],
+  "datasource": {
+    "type": "grafana-azure-monitor-datasource",
+    "uid": "${Subscriptions}"
+  },
+  "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+      "show": false,
+      "reducer": [
+        "sum"
+      ],
+      "countRows": false,
+      "fields": ""
+    },
+    "frameIndex": 1,
+    "sortBy": []
+  }
+}
