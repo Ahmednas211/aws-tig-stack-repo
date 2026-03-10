@@ -1,0 +1,89 @@
+{
+  "mode": "Indexed",
+  "displayName": "Deploy Diagnostic Settings for Load Balancers to nsis-fw-loganalytics-workspace",
+  "description": "Automatically enables all logs and metrics on Azure Load Balancers and sends them to nsis-fw-loganalytics-workspace",
+  "policyRule": {
+    "if": {
+      "field": "type",
+      "equals": "Microsoft.Network/loadBalancers"
+    },
+    "then": {
+      "effect": "DeployIfNotExists",
+      "details": {
+        "type": "Microsoft.Insights/diagnosticSettings",
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "Microsoft.Insights/diagnosticSettings/metrics.enabled",
+              "equals": "true"
+            },
+            {
+              "field": "Microsoft.Insights/diagnosticSettings/workspaceId",
+              "equals": "/subscriptions/7852edc2-4695-44f2-812f-a927308fbfa0/resourceGroups/nsis-fw-loganalytics-RG/providers/Microsoft.OperationalInsights/workspaces/nsis-fw-loganalytics-workspace"
+            }
+          ]
+        },
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+        ],
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "resourceName": { "type": "string" },
+                "location": { "type": "string" }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Network/loadBalancers/providers/diagnosticSettings",
+                  "apiVersion": "2021-05-01-preview",
+                  "name": "[concat(parameters('resourceName'), '/Microsoft.Insights/LB-Diag-nsis-fw-loganalytics')]",
+                  "location": "[parameters('location')]",
+                  "properties": {
+                    "workspaceId": "/subscriptions/7852edc2-4695-44f2-812f-a927308fbfa0/resourceGroups/nsis-fw-loganalytics-RG/providers/Microsoft.OperationalInsights/workspaces/nsis-fw-loganalytics-workspace",
+                    "metrics": [
+                      {
+                        "category": "AllMetrics",
+                        "enabled": true,
+                        "retentionPolicy": {
+                          "days": 30,
+                          "enabled": true
+                        }
+                      }
+                    ],
+                    "logs": [
+                      {
+                        "category": "LoadBalancerAlertEvent",
+                        "enabled": true,
+                        "retentionPolicy": {
+                          "days": 30,
+                          "enabled": true
+                        }
+                      },
+                      {
+                        "category": "LoadBalancerProbeHealthStatus",
+                        "enabled": true,
+                        "retentionPolicy": {
+                          "days": 30,
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "parameters": {
+              "resourceName": { "value": "[field('name')]" },
+              "location": { "value": "[field('location')]" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {}
+}
